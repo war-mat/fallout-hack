@@ -12,7 +12,13 @@ class Display(object):
         
         self.line_width = line_width
         self.num_rows = num_rows
-
+        
+        # screen coords of right text box
+        self.right_text_row = 21
+        self.right_text_col = 49
+        
+        self.right_text_len = 28
+        
     def print_char_delay(self, char, row, col, delay):
         
         self.screen.addch(row, col, char)
@@ -35,7 +41,6 @@ class Display(object):
         else:
             self.screen.refresh()
             
-
     def print_attempts_left(self, attempts, row, col):
     
         for _ in xrange(4):
@@ -97,5 +102,26 @@ class Display(object):
         string = " " * (80 - first_col - 1)
         
         self.print_str_delay(string, 22, first_col, 0, 0)
+        
+    def erase_right_text(self):
+        
+        start = self.right_text_row
+        string = " " * self.right_text_len
+        
+        while start > 0:
+            
+            self.print_str_delay(string, start, self.right_text_col, 0, 0)
+            start -= 1
+            
+    def print_right_text_list(self, text_list):
+        
+        start = self.right_text_row
+        
+        for i in xrange(len(text_list)):
+            
+            string = text_list[i]
+            
+            self.print_str_delay(string, start, self.right_text_col, 0, 0)
+            start -= 1
 
 # separate per-string and per-char delays

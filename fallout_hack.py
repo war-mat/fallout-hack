@@ -35,35 +35,26 @@ def main():
         # curses settings
         curses_setup(screen)
         
-        # use these to position elements
-        window_height, window_width = screen.getmaxyx()
-        
         # create difficulty levels, here then later from config file
         # or a list of tuples
-        difficulty = {
-            0:("word_len", "num_words", "match limit"),
-            1:("word_len", "num_words", "match limit")
-            }
-        
-        # constants
-        WORD_LENGTH = 7
-        NUM_WORDS = 15
-        MATCH_LIMIT = 4
-        LINE_WIDTH = 15
-        NUM_ROWS = 17
-        ROW_START = 6
-        ROW_END = 22
-        LEFT_ADDRESS_START = 1
-        RIGHT_ADDRESS_START = LEFT_ADDRESS_START + 7 + LINE_WIDTH + 2
-        RIGHT_CURSOR_POS = 49
-        RIGHT_LINE_POS = RIGHT_CURSOR_POS + 1
-        
-        
+
         game = fallout_game.Game(screen)
         
-        game.new_game(NUM_WORDS, MATCH_LIMIT, WORD_LENGTH, LINE_WIDTH, NUM_ROWS)
+        level = 0
+        max_level = 4 #
         
-        game.play_game()
+        while True:
+            if level > max_level:
+                # game is beaten, display something
+                pass
+            else:
+                game.new_game(level)
+                
+                if game.play_game() == "win":
+                    level += 1
+                else:
+                    # print you lose or something
+                    break
 
     finally:
         curses_close(screen)
