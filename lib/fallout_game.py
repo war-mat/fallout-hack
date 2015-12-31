@@ -264,11 +264,11 @@ class Game(object):
 #   if not win, get hamming closeness to password and report
 #   decrement attempts
 
-
-                
 # 1/7 correct.
 # Dud removed.
 # Allowance
 # replenished.
 # Entry granted.
             
+# set maximum search length for bracket sets so deletions don't open up more
+# and more bracket sets
