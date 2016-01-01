@@ -12,29 +12,7 @@ class Game(object):
     
     def __init__(self, screen):
         
-        # remaining guesses
-        self.attempts_left = 4
-        
-        # index = level, (word_length, num_words, match_limit)
-        self.levels = [
-            (4, 15, 3),
-            (4, 15, 2),
-            (5, 15, 3),
-            (5, 15, 2)
-            ]
-        
-        # make game text a dictionary
-        self.messages = {"logo":"ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL",
-            "command":"ENTER PASSWORD NOW",
-            "attempts":"ATTEMPT(S) LEFT: ",
-            "warning":"!!! WARNING: LOCKOUT IMMINENT !!!",
-            "denied":"Entry denied."
-            }
-            
-        # curses object for drawing
-        self.screen = screen
-        
-        # use these to position elements
+        # use these to position elements (eventually)
         self.window_height, self.window_width = screen.getmaxyx()
         
         # word constants (should be based on difficulty)
@@ -51,12 +29,49 @@ class Game(object):
         ROW_END = 22
         LEFT_ADDRESS_START = 1
         RIGHT_ADDRESS_START = LEFT_ADDRESS_START + 7 + self.line_width + 2
-        RIGHT_CURSOR_POS = 49
-        RIGHT_LINE_POS = RIGHT_CURSOR_POS + 1
+        self.right_cursor_pos = 49
             
         self.password = ""
         self.candidate_list = []
-
+        
+        # curses object for drawing
+        self.screen = screen
+        
+        # display
+        self.display = fallout_display.Display(
+                self.screen, self.line_width, self.num_rows)
+                
+        # initialize game text object    
+        self.game_text = fallout_text.GameText(
+                self.row_start, self.left_text_start, 32, self.line_width, 
+                self.num_rows)
+        
+        # initialize words object
+        self.words = fallout_words.Words("/usr/share/dict/words")
+        
+        # initialize cursor object    
+        self.cursor = fallout_cursor.Cursor(
+                self.screen, 6, 8, 6, 1, self.line_width, self.num_rows)
+        
+        # remaining guesses
+        self.attempts_left = 4
+        
+        # index = level, (word_length, num_words, match_limit)
+        self.levels = [
+            (4, 15, 3),
+            (4, 15, 2),
+            (5, 15, 3),
+            (5, 15, 2)
+            ]
+        
+        # make game text a dictionary
+        self.messages = {"logo":"ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL",
+            "command":"ENTER PASSWORD NOW",
+            "attempts":"ATTEMPT(S) LEFT: ",
+            "warning":"!!! WARNING: LOCKOUT IMMINENT !!!",
+            "denied":"Entry denied.",
+            "dud":"Dud removed."
+            }
         
     def linear_distrib(self, num_of_numbers, upper_range):
     
@@ -122,7 +137,9 @@ class Game(object):
         Remove a random word from password candidate list and return it.
         """
         
-        index = random.randint(0, len(self.candidate_list))
+        # check if list is empty or not first
+        
+        index = random.randint(0, len(self.candidate_list) - 1)
         
         return self.candidate_list.pop(index)
         
@@ -134,31 +151,30 @@ class Game(object):
 
     def new_game(self, level):
         
+        # clear all text on screen
+        self.display.clear_all()
+        
+        # clear right text list
+        self.game_text.reset_text_list()
+        
         # set word params
         self.set_game_word_params(level)
+        
+        # reset attempts
+        self.attempts_left = 4
         
         # generate distribution of random number of character matches
         self.match_distribution = self.linear_distrib(
                 self.num_words, self.match_limit)
-
-        # open words file and get list of all words of a given length
-        self.words = fallout_words.Words("/usr/share/dict/words")
         
-        left_text, right_text, self.password, self.candidate_list = \
+        self.game_text.left_text, self.game_text.right_text, self.password, self.candidate_list = \
                 self.words.new_game(
-                    self.word_length, self.num_words, self.match_distribution,
-                    self.line_width, self.num_rows)
-        
-        # initialize game text object    
-        self.game_text = fallout_text.GameText(6, 8, 32, 15, 17, left_text, 
-            right_text)
-            
-        self.display = fallout_display.Display(
-                self.screen, self.line_width, self.num_rows)
-        
-        # initialize cursor object    
-        self.cursor = fallout_cursor.Cursor(
-                self.screen, 6, 8, 6, 1, self.line_width, self.num_rows)
+                        self.word_length, self.num_words, 
+                        self.match_distribution, self.line_width, self.num_rows)
+                       
+        # this needs to be it's own method
+        self.game_text.left_text_block = self.game_text.string_to_2d_array(self.game_text.left_text)
+        self.game_text.right_text_block = self.game_text.string_to_2d_array(self.game_text.right_text)
     
     def update_upper_text(self):
         
@@ -176,6 +192,49 @@ class Game(object):
         
         # print remaining attempts
         self.display.print_attempts_left(self.attempts_left, 4, 18)
+        
+    def wrong_word(self, selected_word):
+    
+        # report letter correct / word_length
+        correct = self.words.hamming_closeness(selected_word, self.password)
+                        
+        self.game_text.add_right_line(selected_word)
+        self.game_text.add_right_line(self.messages["denied"])
+                        
+                        
+        msg = "%d/%d correct." % (correct, self.word_length)
+        self.game_text.add_right_line(msg)
+                        
+        self.display.erase_right_text()
+        self.display.print_right_text_list(self.game_text.right_text_list)
+                        
+        # decrement attempts
+        self.attempts_left -= 1
+        
+    def delete_word(self, word):
+        
+        # check left string first
+        index = self.game_text.left_text.find(word)
+            
+        if index > -1:
+            
+            # replace
+            self.game_text.left_text = self.game_text.left_text[:index] + '.' * self.word_length + \
+                    self.game_text.left_text[index + self.word_length:]
+                    
+        else:
+            
+            index = self.game_text.right_text.find(word)
+            
+            self.game_text.right_text = self.game_text.right_text[:index] + '.' * self.word_length + \
+                    self.game_text.right_text[index + self.word_length:]
+                    
+        # reconstruct 2d arrays
+        self.game_text.left_text_block = self.game_text.string_to_2d_array(self.game_text.left_text)
+        self.game_text.right_text_block = self.game_text.string_to_2d_array(self.game_text.right_text)
+        
+        # redraw
+        
                 
     def take_turn(self):
         
@@ -199,56 +258,64 @@ class Game(object):
             # highlight character or word under cursor
             self.display.highlight(highlighted, 1)
             
-            # clear right hand line
-            self.display.right_clear(49)
-            
-            self.display.print_right(selected_word, 49, 0, 0)
+            # print selected word at right cursor position
+            self.display.print_right(selected_word, 0, 0)
             
             char = self.screen.getch()
                 
             if char == ord('q'):
                 result = "quit"
+                
             elif char == ord(' '):
+                
                 # check if selected is a word, bracket set, or neither
+                
+                # write handler functions for word and bracket set
+                
                 if self.game_text.is_word(highlighted):
                         
                     # check if password or not
                     if selected_word == self.password:
-                            
-                        self.display.right_clear(49)
+
                 
-                        self.display.print_right("password", 49, 0, 0)
+                        self.display.print_right("password", 0, 0)
                             
                         char = self.screen.getch()
+                        
+                        result = "win"
                     else:
                         
-                        # report letter correct / word_length
-                        correct = self.words.hamming_closeness(
-                                selected_word, self.password)
-                        
-                        self.game_text.add_right_line(selected_word)
-                        self.game_text.add_right_line(self.messages["denied"])
-                        msg = "%d/%d correct." % (correct, self.word_length)
-                        self.game_text.add_right_line(msg)
-                        
-                        self.display.erase_right_text()
-                        self.display.print_right_text_list(self.game_text.right_text_list)
-                        
-                        # decrement attempts
-                        self.attempts_left -= 1
+                        self.wrong_word(selected_word)
                         
                 elif self.game_text.is_bracket_set(highlighted):
                     
+                    # bracket set selected code, needs to be it's own method
+                    # not being reflected in the text strings, that's why it doesnt
+                    # have any effect
                     self.game_text.delete_word(
                             self.cursor.side, highlighted)
-                        
+                            
+                    self.screen.refresh()
+                    
+                    #     
                     result = self.remove_or_replenish()
 
-
-                
-                self.display.text_block_update(
-                        6, self.game_text.left_text_block, 
-                        self.game_text.right_text_block, 8, 32)
+                    if result == "dud":
+                        
+                        remove = self.remove_random_candidate()
+                        
+                        self.game_text.add_right_line(selected_word)
+                        self.game_text.add_right_line(self.messages["dud"])
+                                        
+                        self.display.erase_right_text()
+                        self.display.print_right_text_list(self.game_text.right_text_list)
+                        
+                        # update left and right text to reflect removed word
+                        self.delete_word(remove)
+                        
+                        self.display.text_block_update(
+                                6, self.game_text.left_text_block, 
+                                self.game_text.right_text_block, 8, 32)
                         
             else:
                 # handle input
@@ -261,6 +328,8 @@ class Game(object):
 
     def play_game(self):
         
+        #self.display.clear_all()
+        
         # print logo text at top
         self.display.print_str_delay(self.messages["logo"], 1, 1, 0, 20)
         
@@ -270,6 +339,7 @@ class Game(object):
         # print remaining attempts
         self.display.print_str_delay(self.messages["attempts"], 4, 1, 0, 15)
         self.display.print_attempts_left(self.attempts_left, 4, 18)
+
         
         # display main text block
         self.display.print_game_text(
@@ -284,19 +354,12 @@ class Game(object):
             if result == "quit":
                 break
             elif result == "win":
-                break
+                return "win"
             elif result == "lose":
                 
                 # print lockout text
                 break
-            
-            
-# crashes if bracket section is too many characters
-# need to add an upper limit to how many characters can be returned
-# or just display them like "%^@#{ ... [[)|&" so it doesnt crash
-# by highlight function
-# set maximum search length for bracket sets so deletions don't open up more
-# and more bracket sets, something like max_length = line_width
+
 
 # random chance to remove dud or replenish attempts
                 
@@ -307,16 +370,20 @@ class Game(object):
 # and right search to find that word
 # if not found, repeat in right block
 # delete it
-                    
-# if hl_type == "word":
-#   check for win
-#   if not win, get hamming closeness to password and report
-#   decrement attempts
+
 
 # 1/7 correct.
 # Dud removed.
 # Allowance
 # replenished.
-# Entry granted.
+# Access granted.
             
+
+# program flow:
+# start curses
+# create Game() object
+# Game __init__ should create all other objects, text, display, cursor, etc
+# loop thru levels
+# for each level, do game.new_game()
+# newgame should reset all game variables
 

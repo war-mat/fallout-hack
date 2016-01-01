@@ -91,17 +91,16 @@ class Display(object):
             
         self.screen.refresh()
         
-    def print_right(self, string, first_col, string_delay, char_delay):
+    def print_right(self, string, string_delay, char_delay):
+        
+        erase = " " * self.right_text_len
+        
+        self.print_str_delay(erase, 22, self.right_text_col, 0, 0)
         
         string = '>' + string
         
-        self.print_str_delay(string, 22, first_col, string_delay, char_delay)
-        
-    def right_clear(self, first_col):
-        
-        string = " " * (80 - first_col - 1)
-        
-        self.print_str_delay(string, 22, first_col, 0, 0)
+        self.print_str_delay(
+                string, 22, self.right_text_col, string_delay, char_delay)
         
     def erase_right_text(self):
         
@@ -110,6 +109,7 @@ class Display(object):
         
         while start > 0:
             
+            # change this to curses' addstr() to avoid per-char overhead
             self.print_str_delay(string, start, self.right_text_col, 0, 0)
             start -= 1
             
@@ -123,5 +123,14 @@ class Display(object):
             
             self.print_str_delay(string, start, self.right_text_col, 0, 0)
             start -= 1
+            
+    def clear_all(self):
+        
+        erase = " " * 78
+        
+        for i in xrange(1, 23):
+        
+            self.screen.addstr(i, 1, erase)
+        
 
 # separate per-string and per-char delays

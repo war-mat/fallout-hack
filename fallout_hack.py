@@ -63,3 +63,6 @@ if __name__ == '__main__':
 
     main()
 
+# unify all Classes to basically operate the same
+# take parameters and init, create variables and whatever when a new game is started
+# perferably with a similar "new_game" method in each

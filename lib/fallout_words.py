@@ -179,7 +179,7 @@ class Words(object):
         left_text = self.insert_words(left_junk, left_column_words)
         right_text = self.insert_words(right_junk, right_column_words)
         
-        return list(left_text), list(right_text)
+        return left_text, right_text
 
     def new_game(self, word_length, num_words, match_distribution, line_width,
         num_rows):

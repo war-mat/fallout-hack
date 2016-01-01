@@ -17,7 +17,7 @@ class GameText(object):
     """ 2d array of characters """
     
     def __init__(self, row_start, left_col_start, right_col_start, line_width, 
-        num_rows, left_text, right_text):
+        num_rows):
         
         self.line_width = line_width
         self.num_rows = num_rows
@@ -40,8 +40,12 @@ class GameText(object):
         # generate a list of addresses starting from that
         self.gen_address_list(self.start_address)
         
-        self.left_text_block = self.vector_to_2d_array(left_text)
-        self.right_text_block = self.vector_to_2d_array(right_text)
+        # original text strings for searching
+        self.left_text = ""
+        self.right_text = ""
+        
+        self.left_text_block = []
+        self.right_text_block = []
         
         self.alphabet = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
         self.junk = set("$.':_!\"+-%\/|*@#`=^;?,")
@@ -50,6 +54,10 @@ class GameText(object):
         
         self.right_text_list = []
         self.right_max_lines = 21
+        
+    def reset_text_list(self):
+        
+        self.right_text_list = []
         
     def add_right_line(self, string):
 
@@ -100,19 +108,17 @@ class GameText(object):
             
             start_address += self.line_width
 
-    def vector_to_2d_array(self, text):
+    def string_to_2d_array(self, text):
         
         output = []
         
         for i in xrange(self.num_rows):
             
-            # indices to split text vector into lines
+            # indices to split text into into lines
             start_index = (i * self.line_width)
             end_index = (i * self.line_width) + self.line_width
             
-            row = text[start_index:end_index]
-            
-            #print type(row)
+            row = list(text[start_index:end_index])
             
             output.append(row)
             
