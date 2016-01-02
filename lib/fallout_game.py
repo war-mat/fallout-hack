@@ -54,23 +54,27 @@ class Game(object):
                 self.screen, 6, 8, 6, 1, self.line_width, self.num_rows)
         
         # remaining guesses
-        self.attempts_left = 4
+        self.attempts_max = 4
+        self.attempts_left = self.attempts_max
         
         # index = level, (word_length, num_words, match_limit)
         self.levels = [
-            (4, 15, 3),
-            (4, 15, 2),
-            (5, 15, 3),
-            (5, 15, 2)
+            (6, 15, 4),
+            (6, 15, 3),
+            (7, 15, 4),
+            (7, 15, 3),
+            (8, 15, 4),
+            (8, 15, 3)
             ]
         
-        # make game text a dictionary
         self.messages = {"logo":"ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL",
             "command":"ENTER PASSWORD NOW",
             "attempts":"ATTEMPT(S) LEFT: ",
             "warning":"!!! WARNING: LOCKOUT IMMINENT !!!",
             "denied":"Entry denied.",
-            "dud":"Dud removed."
+            "dud":"Dud removed.",
+            "allowance":"Allowance",
+            "rep":"replenished."
             }
         
     def linear_distrib(self, num_of_numbers, upper_range):
@@ -136,9 +140,7 @@ class Game(object):
         """
         Remove a random word from password candidate list and return it.
         """
-        
-        # check if list is empty or not first
-        
+
         index = random.randint(0, len(self.candidate_list) - 1)
         
         return self.candidate_list.pop(index)
@@ -167,14 +169,19 @@ class Game(object):
         self.match_distribution = self.linear_distrib(
                 self.num_words, self.match_limit)
         
-        self.game_text.left_text, self.game_text.right_text, self.password, self.candidate_list = \
-                self.words.new_game(
+        self.game_text.left_text, self.game_text.right_text, self.password, \
+                self.candidate_list = self.words.new_game(
                         self.word_length, self.num_words, 
                         self.match_distribution, self.line_width, self.num_rows)
-                       
-        # this needs to be it's own method
-        self.game_text.left_text_block = self.game_text.string_to_2d_array(self.game_text.left_text)
-        self.game_text.right_text_block = self.game_text.string_to_2d_array(self.game_text.right_text)
+                        
+        self.update_text_arrays()
+    
+    def update_text_arrays(self):
+        
+        self.game_text.left_text_block = self.game_text.string_to_2d_array(
+                self.game_text.left_text)
+        self.game_text.right_text_block = self.game_text.string_to_2d_array(
+                self.game_text.right_text)
     
     def update_upper_text(self):
         
@@ -195,7 +202,7 @@ class Game(object):
         
     def wrong_word(self, selected_word):
     
-        # report letter correct / word_length
+        # report letters correct / word_length
         correct = self.words.hamming_closeness(selected_word, self.password)
                         
         self.game_text.add_right_line(selected_word)
@@ -211,7 +218,8 @@ class Game(object):
         # decrement attempts
         self.attempts_left -= 1
         
-    def delete_word(self, word):
+    def delete_word_from_text(self, word):
+        # this belongs in GameText
         
         # check left string first
         index = self.game_text.left_text.find(word)
@@ -219,23 +227,73 @@ class Game(object):
         if index > -1:
             
             # replace
-            self.game_text.left_text = self.game_text.left_text[:index] + '.' * self.word_length + \
+            self.game_text.left_text = self.game_text.left_text[:index] + \
+                    '.' * self.word_length + \
                     self.game_text.left_text[index + self.word_length:]
                     
         else:
-            
+            # check right
             index = self.game_text.right_text.find(word)
             
-            self.game_text.right_text = self.game_text.right_text[:index] + '.' * self.word_length + \
+            self.game_text.right_text = self.game_text.right_text[:index] + \
+                    '.' * self.word_length + \
                     self.game_text.right_text[index + self.word_length:]
                     
         # reconstruct 2d arrays
-        self.game_text.left_text_block = self.game_text.string_to_2d_array(self.game_text.left_text)
-        self.game_text.right_text_block = self.game_text.string_to_2d_array(self.game_text.right_text)
+        self.update_text_arrays()
         
-        # redraw
+    def bracket_set_selected(self, highlighted):
+
+        # roll to see whether a dud is removed or attempts left replenished
+        action = self.remove_or_replenish()
         
-                
+        if action == "dud":
+            
+            ######################################################3333
+            # bracket set selected code, needs to be it's own method
+            # not being reflected in the text strings, that's why it doesnt
+            # have any effect
+            # also allows bracket sets to be selected more than once, until
+            # randomly breaking, idk why
+                    
+            # if no words left besides password, do nothing
+            # or replenish attempts
+            if len(self.candidate_list) == 0:
+                return 
+
+            # pop random word from candidate list
+            remove = self.remove_random_candidate()
+                        
+            self.game_text.add_right_line(self.messages["dud"])
+                                                  
+            # update left and right text to reflect removed word
+            self.delete_word_from_text(remove)
+
+            
+        else:
+
+            # Allowance replenished
+            self.attempts_left = self.attempts_max
+            
+            self.game_text.add_right_line(self.messages["allowance"])
+            self.game_text.add_right_line(self.messages["rep"])
+        
+        # print right hand text    
+        self.display.erase_right_text()
+        self.display.print_right_text_list(self.game_text.right_text_list)
+        
+        # delete selected bracket from game text    
+        self.game_text.delete_word(self.cursor.side, highlighted)
+        
+        # rebuild text blocks
+        self.update_text_arrays()
+        
+        # redraw text blocks
+        self.display.text_block_update(
+                    6, self.game_text.left_text_block, 
+                    self.game_text.right_text_block, 8, 32)
+
+        
     def take_turn(self):
         
         self.update_upper_text()
@@ -289,33 +347,13 @@ class Game(object):
                         
                 elif self.game_text.is_bracket_set(highlighted):
                     
-                    # bracket set selected code, needs to be it's own method
-                    # not being reflected in the text strings, that's why it doesnt
-                    # have any effect
-                    self.game_text.delete_word(
-                            self.cursor.side, highlighted)
-                            
-                    self.screen.refresh()
+                    # add selected bracket set to right text list
+                    self.game_text.add_right_line(selected_word)
                     
-                    #     
-                    result = self.remove_or_replenish()
-
-                    if result == "dud":
-                        
-                        remove = self.remove_random_candidate()
-                        
-                        self.game_text.add_right_line(selected_word)
-                        self.game_text.add_right_line(self.messages["dud"])
-                                        
-                        self.display.erase_right_text()
-                        self.display.print_right_text_list(self.game_text.right_text_list)
-                        
-                        # update left and right text to reflect removed word
-                        self.delete_word(remove)
-                        
-                        self.display.text_block_update(
-                                6, self.game_text.left_text_block, 
-                                self.game_text.right_text_block, 8, 32)
+                    # handle bracket selection
+                    self.bracket_set_selected(highlighted)
+                    
+                    
                         
             else:
                 # handle input
@@ -372,10 +410,7 @@ class Game(object):
 # delete it
 
 
-# 1/7 correct.
-# Dud removed.
-# Allowance
-# replenished.
+
 # Access granted.
             
 
@@ -387,3 +422,4 @@ class Game(object):
 # for each level, do game.new_game()
 # newgame should reset all game variables
 
+# should be working in only 2 coordinate spaces: screen y,x and text string index

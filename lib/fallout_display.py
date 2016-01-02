@@ -14,7 +14,7 @@ class Display(object):
         self.num_rows = num_rows
         
         # screen coords of right text box
-        self.right_text_row = 21
+        self.right_text_row = 20
         self.right_text_col = 49
         
         self.right_text_len = 28

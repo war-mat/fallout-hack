@@ -11,8 +11,17 @@ class Words(object):
         
         self.open_words_file(words_file)
         
-        self.password = ""
-        self.candidate_list = []
+    @staticmethod    
+    def hamming_closeness(word1, word2):
+        """
+        Return number of same characters, same location in two strings.
+        Basically the inverse of Hamming distance.
+        """
+    
+        if len(word1) != len(word2):
+            raise ValueError("Undefined for sequences of unequal length")
+        else:
+            return sum(char1 == char2 for char1, char2 in zip(word1, word2))
     
     def is_ascii(self, word):
     
@@ -27,8 +36,8 @@ class Words(object):
         
         with open(words_file, "r") as words:
             
-            self.all_words = [w.strip() for w in words.readlines() if \
-                not w[0].isupper() and ('\'' not in w) and self.is_ascii(w)]
+            self.all_words = [w.strip() for w in words.readlines() if not \
+                    w[0].isupper() and ('\'' not in w) and self.is_ascii(w)]
 
     def gen_word_list(self, word_length):
         
@@ -38,18 +47,7 @@ class Words(object):
     def new_password(self, word_list):
         
         return random.choice(word_list)
-        
-    def hamming_closeness(self, word1, word2):
-        """
-        Return number of same characters, same location in two strings.
-        Basically the inverse of Hamming distance.
-        """
-    
-        if len(word1) != len(word2):
-            raise ValueError("Undefined for sequences of unequal length")
-        else:
-            return sum(char1 == char2 for char1, char2 in zip(word1, word2))
-            
+
     def insert_password_rand_pos(self, candidate_list, password):
     
         pos = random.randint(0, len(candidate_list))

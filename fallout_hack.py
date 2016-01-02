@@ -34,19 +34,17 @@ def main():
         
         # curses settings
         curses_setup(screen)
-        
-        # create difficulty levels, here then later from config file
-        # or a list of tuples
 
         game = fallout_game.Game(screen)
         
         level = 0
-        max_level = 4 #
+        max_level = 5 #
         
         while True:
             if level > max_level:
                 # game is beaten, display something
-                pass
+                # game.won(or something)
+                break
             else:
                 game.new_game(level)
                 
@@ -54,6 +52,7 @@ def main():
                     level += 1
                 else:
                     # print you lose or something
+                    # game.lose(lol)
                     break
 
     finally:
@@ -63,6 +62,16 @@ if __name__ == '__main__':
 
     main()
 
+########################## Issues/to do ###############################
 # unify all Classes to basically operate the same
 # take parameters and init, create variables and whatever when a new game is started
-# perferably with a similar "new_game" method in each
+# preferably with a similar "new_game" method in each
+
+# candidate list generation fails or inf loops on some word sizes, where a pw is
+# picked for which not enough similar words exist or something
+# workaround could use a timer, say if 1 second passes and it's not done, pick
+# another password and start over
+
+# current algo for character selection goes "screen y,x -> text y,x -> string index"
+# see if middle step can't be cut out somehow (can be, just need to apply the change
+# everywhere)

@@ -5,13 +5,11 @@ import random
 
 class Character(object):
     
-    def __init__(self, char, screen_y, screen_x, text_y, text_x):
+    def __init__(self, char, screen_y, screen_x):
         
         self.char = char
         self.screen_y = screen_y
         self.screen_x = screen_x
-        self.text_y = text_y
-        self.text_x = text_x
 
 class GameText(object):
     """ 2d array of characters """
@@ -53,7 +51,9 @@ class GameText(object):
         self.right_brackets = list(")]>}")
         
         self.right_text_list = []
-        self.right_max_lines = 21
+        self.right_max_lines = 20
+        
+        self.max_bracket_len = 20
         
     def reset_text_list(self):
         
@@ -63,7 +63,7 @@ class GameText(object):
 
         self.right_text_list.insert(0, ('>' + string))
         
-        if len(self.right_text_list) > self.right_max_lines:
+        while len(self.right_text_list) > self.right_max_lines:
             
             self.right_text_list.pop()
         
@@ -150,164 +150,152 @@ class GameText(object):
             
         return cursor_y, cursor_x
         
-    def check_alpha_left(self, side, pos_y, pos_x):
+    def check_alpha_left(self, side, index):
 
         if side == "left":
-            text = self.left_text_block
+            text = self.left_text
         else:
-            text = self.right_text_block
+            text = self.right_text
             
-        highlight_chars = []
+        hl_list = []
 
         while True:
+            
+            index -= 1 # move one character left
+            
+            if index < 0:
+                break
+            else:
+                char = text[index]
                 
-            pos_x -= 1 # move 1 space left
-                
-            if pos_x < 0:
-                if pos_y > 0:
-                    pos_x = self.line_width - 1
-                    pos_y -= 1 # move up one
+                if self.is_alpha(char):
+                    screen_y, screen_x = \
+                            self.string_index_to_screen_coords(side, index)
+                    
+                    hl_list.append(Character(char, screen_y, screen_x))
+                    
                 else:
                     break
-
-            if self.is_alpha(text[pos_y][pos_x]):
+        
+        # reverse highlight list to put characters in correct order            
+        if hl_list:
+            hl_list.reverse()
+            
+        return hl_list
+        
+    def check_alpha_right(self, side, index):
+        
+        if side == "left":
+            text = self.left_text
+        else:
+            text = self.right_text
+        
+        hl_list = []
+        
+        while True:
                 
-                char = text[pos_y][pos_x]
-                screen_y, screen_x = (self.translate_block_to_cursor(side, 
-                    pos_y, pos_x))
-                    
-                highlight_chars.append(Character(char, screen_y, screen_x, 
-                    pos_y, pos_x))
+            index += 1 # move one character right
+                
+            if index > (len(text) - 1):
+                break
+            else:
+                char = text[index]
+
+            if self.is_alpha(char):
+                
+                screen_y, screen_x = \
+                        self.string_index_to_screen_coords(side, index)
+                        
+                hl_list.append(Character(char, screen_y, screen_x))
             else:
                 break
                 
-        return highlight_chars
+        return hl_list
         
-    def check_alpha_right(self, side, pos_y, pos_x):
-        
-        if side == "left":
-            text = self.left_text_block
-        else:
-            text = self.right_text_block
-        
-        highlight_chars = []
-        
-        while True:
-                
-            pos_x += 1 # move 1 space right
-                
-            if pos_x > (self.line_width - 1):
-                if pos_y < (self.num_rows - 1):
-                    pos_x = 0
-                    pos_y += 1 # move down one
-                else:
-                    break
-
-            if self.is_alpha(text[pos_y][pos_x]):
-                
-                char = text[pos_y][pos_x]
-                screen_y, screen_x = (self.translate_block_to_cursor(side, 
-                    pos_y, pos_x))
-                    
-                highlight_chars.append(Character(char, screen_y, screen_x, 
-                    pos_y, pos_x))
-            else:
-                break
-                
-        return highlight_chars
-        
-    def check_bracket_left(self, side, pos_y, pos_x, matching, max_length):
+    def check_bracket_left(self, side, index, matching):
         
         if side == "left":
-            text = self.left_text_block
+            text = self.left_text
         else:
-            text = self.right_text_block
+            text = self.right_text
         
         found = False
-        highlight_chars = []
+        hl_list = []
 
         while True:
                 
-            pos_x -= 1 # move 1 space left
-                
-            if pos_x < 0:
-                if pos_y > 0:
-                    pos_x = self.line_width - 1
-                    pos_y -= 1 # move up one
-                else:
-                    break
+            index -= 1 # move one character left
             
-            char = text[pos_y][pos_x]
-                
-            # brackets cannot contain words
-            if self.is_alpha(char):
+            if index < 0:
                 break
             else:
-                screen_y, screen_x = (self.translate_block_to_cursor(side, 
-                        pos_y, pos_x))
-                        
-                highlight_chars.append(Character(char, screen_y, screen_x, 
-                        pos_y, pos_x))       
+                char = text[index]
                 
-                if len(highlight_chars) > max_length - 1:
+                if self.is_alpha(char):
                     break
-                    
+                
+                screen_y, screen_x = self.string_index_to_screen_coords(
+                        side, index)
+                        
+                hl_list.append(Character(char, screen_y, screen_x))
+                
+                if len(hl_list) > (self.max_bracket_len - 1):
+                    break
+                
                 if char == matching:
                     found = True
                     break
         
         # revert highlight character list if no match found
         if not found:
-            highlight_chars = []
-            
-        return highlight_chars
-        
-    def check_bracket_right(self, side, pos_y, pos_x, matching, max_length):
-        
-        if side == "left":
-            text = self.left_text_block
+            hl_list = []
         else:
-            text = self.right_text_block
+            # reverse highlight list to put characters in correct order
+            hl_list.reverse()
+            
+        return hl_list
+        
+    def check_bracket_right(self, side, index, matching):
+        
+        # maybe avoid performing this check every time just by passing 'text'
+        # itself as an argument to all these functions
+        if side == "left":
+            text = self.left_text
+        else:
+            text = self.right_text
         
         found = False
-        highlight_chars = []
+        hl_list = []
         
         while True:
-                
-            pos_x += 1 # move 1 space right
-                
-            if pos_x > (self.line_width - 1):
-                if pos_y < (self.num_rows - 1):
-                    pos_x = 0
-                    pos_y += 1 # move down one
-                else:
-                    break
-                
-            char = text[pos_y][pos_x]
-
-            # brackets cannot contain words
-            if self.is_alpha(char):
-                break
             
+            index += 1 # move one character right
+            
+            if index > (len(text) - 1):
+                break
             else:
-                screen_y, screen_x = (self.translate_block_to_cursor(side, 
-                        pos_y, pos_x))
-                        
-                highlight_chars.append(Character(char, screen_y, screen_x, 
-                        pos_y, pos_x))
+                char = text[index]
                 
-                if len(highlight_chars) > max_length - 1:
+                if self.is_alpha(char):
                     break
-                    
+                
+                screen_y, screen_x = self.string_index_to_screen_coords(
+                        side, index)
+                        
+                hl_list.append(Character(char, screen_y, screen_x))
+                
+                if len(hl_list) > (self.max_bracket_len - 1):
+                    break
+                
                 if char == matching:
                     found = True
                     break
         
-        # revert highlight character list if no match found            
+        # revert highlight character list if no match found          
         if not found:
-            highlight_chars = []
-        
-        return highlight_chars
+            hl_list = []
+           
+        return hl_list
         
     def get_highlighted(self, side, cursor_y, cursor_x):
         """ 
@@ -316,26 +304,26 @@ class GameText(object):
         """
         
         if side == "left":
-            text = self.left_text_block
+            text = self.left_text
         else:
-            text = self.right_text_block
+            text = self.right_text
         
-        # convert to text block coords    
-        pos_y, pos_x = self.translate_cursor_to_block(side, cursor_y, cursor_x)
+        # convert screen coords to string coords
+        index = self.screen_coords_to_string_index(side, cursor_y, cursor_x)
         
-        # get character at those coords
-        char = text[pos_y][pos_x]
+        # get character at that string index
+        char = text[index]
 
         # add that character to highlight list
-        hl_list = [Character(char, cursor_y, cursor_x, pos_y, pos_x)]
-            
+        hl_list = [Character(char, cursor_y, cursor_x)]
+        
         # check character type (alpha, bracket, junk)
         if self.is_alpha(char):
             
             # check characters to the left and right
-            hl_list += self.check_alpha_left(side, pos_y, pos_x)
-            hl_list += self.check_alpha_right(side, pos_y, pos_x)
-            
+            hl_list = self.check_alpha_left(side, index) + hl_list
+            hl_list += self.check_alpha_right(side, index)
+        
         elif self.is_bracket(char):
             
             # find whether matching bracket is left or right
@@ -343,30 +331,40 @@ class GameText(object):
                 matching = self.right_brackets[self.left_brackets.index(char)]
                 
                 # check characters to the right of current position
-                hl_list += self.check_bracket_right(
-                        side, pos_y, pos_x, matching, 20)
+                hl_list += self.check_bracket_right(side, index, matching)
                 
             else:
                 matching = self.left_brackets[self.right_brackets.index(char)]
             
                 # check characters to the left of current position
-                hl_list += self.check_bracket_left(
-                        side, pos_y, pos_x, matching, 20)
+                hl_list = self.check_bracket_left(side, index, matching) + \
+                        hl_list
+        
+        # junk characters: hl_list already contains just that char, so return
         
         return hl_list
         
     def delete_word(self, side, highlight_list):
-        """ replace specified chars in text block with .s """
+        """ replace specified chars in text block with '.'s """
         
         if side == "left":
-            text = self.left_text_block
+            text = self.left_text
         else:
-            text = self.right_text_block
+            text = self.right_text
             
         for hl in highlight_list:
             
-            text[hl.text_y][hl.text_x] = '.'
-        
+            index = self.screen_coords_to_string_index(
+                    side, hl.screen_y, hl.screen_x)
+            
+            text = text[:index] + '.' + text[(index + 1):]
+            
+        if side == "left":
+            self.left_text = text
+        else:
+            self.right_text = text
+    
+    '''    
     def get_selected_word(self, highlight_list):
         
         out = ""
@@ -379,12 +377,52 @@ class GameText(object):
             out = out + hl.char
             
         return out
+    '''
+    def get_selected_word(self, hl_list):
 
-    def is_word(self, highlight_list):
+        out = ""
         
-        return self.is_alpha(highlight_list[0].char)
+        for ch in hl_list:
+            
+            out += ch.char
+            
+        return out
+
+    def is_word(self, hl_list):
         
-    def is_bracket_set(self, highlight_list):
+        return self.is_alpha(hl_list[0].char)
         
-        return self.is_bracket(highlight_list[0].char) and \
-            len(highlight_list) > 1
+    def is_bracket_set(self, hl_list):
+        
+        return self.is_bracket(hl_list[0].char) and \
+            len(hl_list) > 1
+    
+    '''        
+    def text_coords_to_string_index(self, pos_y, pos_x):
+        
+        return pos_y * self.line_width + pos_x
+        
+    def string_index_to_text_coords(self, index):
+        
+        return (index / self.line_width), (index % self.line_width)
+    '''
+        
+    def screen_coords_to_string_index(self, side, screen_y, screen_x):
+        
+        if side == "left":
+            x_offset = self.left_lower
+        else:
+            x_offset = self.right_lower
+        
+        return (screen_y - self.row_start) * self.line_width + \
+                (screen_x - x_offset)
+        
+    def string_index_to_screen_coords(self, side, index):
+        
+        if side == "left":
+            x_offset = self.left_lower
+        else:
+            x_offset = self.right_lower
+        
+        return (index / self.line_width) + self.row_start, \
+                (index % self.line_width) + x_offset
